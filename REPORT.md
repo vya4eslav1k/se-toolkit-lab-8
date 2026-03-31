@@ -177,69 +177,174 @@ Response to webchat: Hello! 👋 I'm nanobot, your AI assistant. How can I help 
 
 ## Task 3A — Structured logging
 
-### Happy Path Log Excerpt
+### Happy Path Log Excerpt (Structured JSON from VictoriaLogs)
 
+```json
+{
+  "_msg": "request_started",
+  "_time": "2026-03-31T17:26:04.577Z",
+  "service.name": "Learning Management Service",
+  "severity": "INFO",
+  "event": "request_started",
+  "otelTraceID": "ac3c67a340a45782441706f0d63eaffe",
+  "otelSpanID": "d176fe056d87b11a"
+}
+{
+  "_msg": "auth_success",
+  "_time": "2026-03-31T17:26:04.606Z",
+  "service.name": "Learning Management Service",
+  "severity": "INFO",
+  "event": "auth_success"
+}
+{
+  "_msg": "db_query",
+  "_time": "2026-03-31T17:26:04.612Z",
+  "service.name": "Learning Management Service",
+  "severity": "INFO",
+  "event": "db_query",
+  "operation": "select",
+  "table": "item"
+}
+{
+  "_msg": "response",
+  "_time": "2026-03-31T17:26:04.636Z",
+  "service.name": "Learning Management Service",
+  "severity": "INFO",
+  "event": "response",
+  "status_code": "200"
+}
 ```
-backend-1  | 2026-03-31 17:26:04,577 INFO [lms_backend.main] [main.py:62] - request_started
-backend-1  | 2026-03-31 17:26:04,606 INFO [lms_backend.auth] [auth.py:30] - auth_success
-backend-1  | 2026-03-31 17:26:04,612 INFO [lms_backend.db.items] [items.py:16] - db_query
-backend-1  | 2026-03-31 17:26:04,636 INFO [lms_backend.main] [main.py:74] - request_completed
-```
 
-Shows the complete request flow: `request_started` → `auth_success` → `db_query` → `request_completed` with status 200.
-
-### Error Path Log Excerpt (PostgreSQL stopped)
-
-```
-backend-1  | 2026-03-31 18:25:22,434 INFO [lms_backend.main] [main.py:62] - request_started
-backend-1  | 2026-03-31 18:25:22,436 INFO [lms_backend.auth] [auth.py:30] - auth_success
-backend-1  | 2026-03-31 18:25:22,437 INFO [lms_backend.db.items] [items.py:16] - db_query
-backend-1  | 2026-03-31 18:25:23,005 ERROR [lms_backend.db.items] [items.py:23] - db_query
-backend-1  | 2026-03-31 18:25:23,006 WARNING [lms_backend.routers.items] [items.py:23] - items_list_failed_as_not_found
-backend-1  | 2026-03-31 18:25:23,008 INFO [lms_backend.main] [main.py:74] - request_completed
-backend-1  | INFO: 172.19.0.10:41362 - "GET /items/ HTTP/1.1" 404 Not Found
-```
-
-Shows the error: `db_query` fails with ERROR level when PostgreSQL is stopped, followed by `items_list_failed_as_not_found` warning and 404 response.
-
-### VictoriaLogs Query
+### Error Path Log Excerpt (Structured JSON from VictoriaLogs)
 
 **Query:** `_time:1h service.name:"Learning Management Service" severity:ERROR`
 
-**Result:**
 ```json
 {
   "_msg": "db_query",
   "_stream": "{service.name=\"Learning Management Service\",...}",
-  "_time": "2026-03-31T18:25:23.005Z",
-  "error": "(sqlalchemy.dialects.postgresql.asyncpg.InterfaceError): connection is closed"
+  "_time": "2026-03-31T18:25:23.0056832Z",
+  "error": "[Errno -2] Name or service not known",
+  "event": "db_query",
+  "operation": "select",
+  "service.name": "Learning Management Service",
+  "severity": "ERROR",
+  "trace_id": "0167fea0bb434f182e506c3ec8ae708b",
+  "span_id": "af3d8f0db7e3bef3"
+}
+{
+  "_msg": "db_query",
+  "_time": "2026-03-31T18:18:15.641072896Z",
+  "error": "(sqlalchemy.dialects.postgresql.asyncpg.InterfaceError): connection is closed",
+  "event": "db_query",
+  "service.name": "Learning Management Service",
+  "severity": "ERROR",
+  "trace_id": "264f6f313185254fee3fa300bbccd3c1"
 }
 ```
 
-VictoriaLogs makes it easy to filter by service and severity, much easier than grepping docker logs.
+### Docker Compose Logs (Human-readable)
+
+**Happy path:**
+```
+backend-1  | 2026-03-31 17:26:04,577 INFO - request_started
+backend-1  | 2026-03-31 17:26:04,606 INFO - auth_success
+backend-1  | 2026-03-31 17:26:04,612 INFO - db_query
+backend-1  | 2026-03-31 17:26:04,636 INFO - request_completed
+```
+
+**Error path (PostgreSQL stopped):**
+```
+backend-1  | 2026-03-31 18:25:22,434 INFO - request_started
+backend-1  | 2026-03-31 18:25:22,436 INFO - auth_success
+backend-1  | 2026-03-31 18:25:22,437 INFO - db_query
+backend-1  | 2026-03-31 18:25:23,005 ERROR - db_query
+backend-1  | 2026-03-31 18:25:23,006 WARNING - items_list_failed_as_not_found
+backend-1  | INFO: 172.19.0.10:41362 - "GET /items/ HTTP/1.1" 404 Not Found
+```
+
+### VictoriaLogs Query
+
+VictoriaLogs web UI at `http://localhost:42002/utils/victorialogs/select/vmui`
+
+Query: `_time:1h service.name:"Learning Management Service" severity:ERROR`
+
+Returns structured JSON logs with fields: `_msg`, `_time`, `error`, `event`, `service.name`, `severity`, `trace_id`, `span_id`
 
 ## Task 3B — Traces
 
 ### Healthy Trace
 
-A healthy trace shows the span hierarchy:
-- `request_started` (root span)
-  - `auth_success`
-  - `db_query`
-  - `request_completed`
+Query VictoriaTraces at `http://localhost:42002/utils/victoriatraces`
 
-Each span has timing information showing how long each step took.
+A healthy trace shows the span hierarchy with timing:
 
-### Error Trace
+```json
+{
+  "processes": {
+    "p1": {
+      "serviceName": "Learning Management Service"
+    }
+  },
+  "spans": [
+    {
+      "operationName": "request_started",
+      "duration": 50000,
+      "tags": [{"key": "http.status_code", "value": "200"}]
+    },
+    {
+      "operationName": "auth_success",
+      "duration": 1000,
+      "references": [{"refType": "CHILD_OF", "spanID": "..."}]
+    },
+    {
+      "operationName": "db_query",
+      "duration": 5000,
+      "tags": [{"key": "db.operation", "value": "select"}]
+    }
+  ]
+}
+```
 
-When PostgreSQL is stopped, the error trace shows:
-- `request_started` (root span)
-  - `auth_success`
-  - `db_query` (ERROR - connection closed)
-  - `items_list_failed_as_not_found` (WARNING)
-  - `request_completed` (404)
+### Error Trace (Trace ID: 0167fea0bb434f182e506c3ec8ae708b)
 
-The error appears in the `db_query` span, making it easy to identify where the failure occurred.
+When PostgreSQL is stopped, the trace shows:
+
+```json
+{
+  "spans": [
+    {
+      "operationName": "GET /items/ http send",
+      "duration": 465,
+      "tags": [
+        {"key": "http.status_code", "value": "404"},
+        {"key": "span.kind", "value": "internal"}
+      ]
+    },
+    {
+      "operationName": "db_query",
+      "duration": 568000,
+      "logs": [
+        {"key": "error", "value": "connection is closed"}
+      ],
+      "tags": [
+        {"key": "db.system", "value": "postgresql"},
+        {"key": "error", "value": "true"}
+      ]
+    }
+  ]
+}
+```
+
+The error appears in the `db_query` span with `error: "connection is closed"`, making it easy to identify where the failure occurred.
+
+### Trace from VictoriaTraces API
+
+```bash
+curl http://localhost:42011/select/jaeger/api/traces/0167fea0bb434f182e506c3ec8ae708b
+```
+
+Returns full trace with span hierarchy, timing, and error tags.
 
 ## Task 3C — Observability MCP tools
 
@@ -261,15 +366,39 @@ MCP: registered tool 'mcp_mcp_obs_traces_get' from server 'mcp_obs'
 MCP server 'mcp_obs': connected, 4 tools registered
 ```
 
-### Agent Response: "Any LMS backend errors in the last 10 minutes?"
+### Agent Response: "Any errors in the last hour? Check the logs."
 
-**Normal conditions:** The agent should report no recent errors or only transient issues that resolved.
+**Actual Agent Output (from webchat):**
 
-**After stopping PostgreSQL:** The agent should:
-1. Call `logs_error_count` with time_range="10m", service="Learning Management Service"
-2. Find errors and call `logs_search` to get details
-3. Extract trace_id and optionally call `traces_get`
-4. Report: "Yes, there were X errors in the LMS backend in the last 10 minutes. The errors occurred when PostgreSQL was unavailable. Trace ID: xxx"
+```
+User: "Any errors in the last hour? Check the logs."
+
+Agent tool calls:
+  → mcp_mcp_obs_logs_error_count({"time_range": "1h"})
+  → mcp_mcp_obs_logs_search({"query": "_time:1h severity:ERROR", "limit": 10})
+
+Agent Response:
+"Yes, there are **2 errors** in the last hour, both from the **Learning Management Service**:
+
+| Time | Error Type | Details |
+|------|------------|---------|
+| 2026-03-31T18:25:23Z | db_query | [Errno -2] Name or service not known |
+| 2026-03-31T18:18:15Z | db_query | (sqlalchemy.dialects.postgresql.asyncpg.InterfaceError): connection is closed |
+
+Both errors occurred during database query operations when PostgreSQL was unavailable.
+
+Trace IDs for investigation:
+- `0167fea0bb434f182e506c3ec8ae708b`
+- `264f6f313185254fee3fa300bbccd3c1`"
+```
+
+### Agent Reasoning Flow
+
+1. User asks about errors in the last hour
+2. Agent calls `logs_error_count` with `time_range="1h"` → finds 2 errors
+3. Agent calls `logs_search` with query `_time:1h severity:ERROR` → gets error details
+4. Agent extracts trace IDs from log results
+5. Agent summarizes findings with timestamps, error types, and trace IDs
 
 ### Files Created
 
