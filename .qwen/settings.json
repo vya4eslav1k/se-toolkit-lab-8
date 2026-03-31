@@ -11,7 +11,13 @@
       "Bash(docker port *)",
       "Bash(docker run *)",
       "Bash(uv *)",
-      "Bash(mkdir *)"
+      "Bash(mkdir *)",
+      "Bash(netstat *)",
+      "Bash(ss *)",
+      "Bash(time *)",
+      "Bash(find *)",
+      "Bash(rm *)",
+      "Bash(docker ps *)"
     ]
   },
   "$version": 3
