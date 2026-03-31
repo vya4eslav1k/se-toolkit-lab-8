@@ -19,6 +19,7 @@ Use LMS MCP tools to provide live course analytics and data from the backend.
 - `lms_top_learners` — Get top learners by average score for a lab. Requires `lab` and optional `limit` (default 5).
 - `lms_completion_rate` — Get completion rate (passed / total) for a lab. Requires `lab` parameter.
 - `lms_sync_pipeline` — Trigger the LMS sync pipeline. May take a moment. No parameters.
+- `mcp_webchat_ui_message` — Send structured UI messages (choice, confirm, composite) to the active web chat.
 
 ## Strategy
 
@@ -27,13 +28,14 @@ Use LMS MCP tools to provide live course analytics and data from the backend.
 If the user asks for scores, pass rates, completion, groups, timeline, or top learners without naming a lab:
 
 1. Call `lms_labs` first to get the list of available labs
-2. If multiple labs are available, use the `mcp_webchat_ui_message` tool with `type: "choice"` to let the user pick one
+2. Use `mcp_webchat_ui_message` with `type: "choice"` to let the user pick one lab
 3. Use each lab's `title` field as the choice label and `id` as the value
-4. Once the user selects a lab, call the appropriate tool with the selected lab ID
+4. Include the `chat_id` from the runtime context
+5. Once the user selects a lab, call the appropriate tool with the selected lab ID
 
 ### When user asks for general LMS info
 
-- "What labs are available?" → Call `lms_labs` and list them
+- "What labs are available?" → Call `lms_labs` and present as a choice UI
 - "Is the backend healthy?" → Call `lms_health` and report status + item count
 - "How many learners?" → Call `lms_learners` and report count
 - "What can you do?" → Explain you can access live LMS data using the tools above
@@ -61,3 +63,6 @@ If the user asks for scores, pass rates, completion, groups, timeline, or top le
 
 **User:** "Show me the top 3 learners in lab-04"
 **You:** Call `lms_top_learners` with lab="lab-04" and limit=3
+
+**User:** "Is the LMS healthy?"
+**You:** Call `lms_health` and report: "Yes, the LMS backend is healthy with X items"

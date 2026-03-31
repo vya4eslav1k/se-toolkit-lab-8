@@ -82,7 +82,7 @@ def main():
             config["channels"] = {}
 
         webchat_host = os.environ.get("NANOBOT_WEBCHAT_CONTAINER_ADDRESS", "0.0.0.0").strip()
-        webchat_port = os.environ.get("NANOBOT_WEBCHAT_CONTAINER_PORT", "8081").strip()
+        webchat_port = os.environ.get("NANOBOT_WEBCHAT_CONTAINER_PORT", "8765").strip()
 
         config["channels"]["webchat"] = {
             "enabled": True,
@@ -91,22 +91,22 @@ def main():
             "allowFrom": ["*"],
         }
 
-        # Task 2B: Configure mcp-webchat MCP server for UI messages (disabled for now)
-        # webchat_ui_relay_url = os.environ.get("NANOBOT_WEBCHAT_UI_RELAY_URL", "").strip()
-        # webchat_ui_token = os.environ.get("NANOBOT_WEBCHAT_UI_TOKEN", "").strip()
+        # Configure mcp-webchat MCP server for UI messages
+        webchat_ui_relay_url = os.environ.get("NANOBOT_WEBCHAT_UI_RELAY_URL", "").strip()
+        webchat_ui_token = os.environ.get("NANOBOT_WEBCHAT_UI_TOKEN", "").strip()
 
-        # if "mcp_webchat" not in config["tools"]["mcpServers"]:
-        #     config["tools"]["mcpServers"]["mcp_webchat"] = {
-        #         "command": "python",
-        #         "args": ["-m", "mcp_webchat"],
-        #         "env": {},
-        #     }
+        if "mcp_webchat" not in config["tools"]["mcpServers"]:
+            config["tools"]["mcpServers"]["mcp_webchat"] = {
+                "command": "python",
+                "args": ["-m", "mcp_webchat"],
+                "env": {},
+            }
 
-        # mcp_webchat_env = config["tools"]["mcpServers"]["mcp_webchat"]["env"]
-        # if webchat_ui_relay_url:
-        #     mcp_webchat_env["NANOBOT_WEBCHAT_UI_RELAY_URL"] = webchat_ui_relay_url
-        # if webchat_ui_token:
-        #     mcp_webchat_env["NANOBOT_WEBCHAT_UI_TOKEN"] = webchat_ui_token
+        mcp_webchat_env = config["tools"]["mcpServers"]["mcp_webchat"]["env"]
+        if webchat_ui_relay_url:
+            mcp_webchat_env["NANOBOT_WEBCHAT_UI_RELAY_URL"] = webchat_ui_relay_url
+        if webchat_ui_token:
+            mcp_webchat_env["NANOBOT_WEBCHAT_UI_TOKEN"] = webchat_ui_token
 
     # Write resolved config
     with open(resolved_path, "w") as f:

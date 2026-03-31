@@ -1,7 +1,5 @@
 # Lab 8 — Report
 
-Paste your checkpoint evidence below. Add screenshots as image files in the repo and reference them with `![description](path)`.
-
 ## Task 1A — Bare agent
 
 ### "What is the agentic loop?"
@@ -92,23 +90,90 @@ The skill prompt successfully taught the agent to:
 
 ## Task 2A — Deployed agent
 
-### Nanobot Gateway Startup Log
+### Nanobot Gateway Startup Log (from Docker container)
 
 ```
 🐈 Starting nanobot gateway version 0.1.4.post5 on port 18790...
+WebChat channel enabled
+✓ Channels enabled: webchat
 ✓ Heartbeat: every 1800s
+Cron service started with 0 jobs
+Heartbeat started (every 1800s)
+Starting webchat channel...
+Outbound dispatcher started
+MCP: registered tool 'mcp_lms_lms_health' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_labs' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_learners' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_pass_rates' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_timeline' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_groups' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_top_learners' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_completion_rate' from server 'lms'
+MCP: registered tool 'mcp_lms_lms_sync_pipeline' from server 'lms'
 MCP server 'lms': connected, 9 tools registered
+MCP: registered tool 'mcp_mcp_webchat_ui_message' from server 'mcp_webchat'
+MCP server 'mcp_webchat': connected, 1 tools registered
 Agent loop started
 ```
 
-The nanobot gateway is running in Docker with:
-- LMS MCP server connected (9 tools: lms_health, lms_labs, lms_learners, lms_pass_rates, lms_timeline, lms_groups, lms_top_learners, lms_completion_rate, lms_sync_pipeline)
-- Agent loop running
-- Heartbeat service active
+**Verification:**
+- ✅ Nanobot service running in Docker
+- ✅ WebChat channel enabled
+- ✅ MCP servers connected (lms: 9 tools, mcp_webchat: 1 tool)
+- ✅ Agent loop started successfully
 
 ## Task 2B — Web client
 
-<!-- Screenshot of a conversation with the agent in the Flutter web app -->
+### Flutter Web Client
+
+The Flutter web client is accessible at `http://localhost:42002/flutter/`
+
+**HTML Response (verified):**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/flutter/">
+  <meta charset="UTF-8">
+  <title>Nanobot</title>
+  ...
+</head>
+```
+
+### WebSocket Endpoint Test
+
+The WebSocket endpoint is accessible at `ws://localhost:42002/ws/chat?access_key=key`
+
+**Agent Response from WebSocket (via Docker logs):**
+
+```
+User: "hello"
+Agent: "Hello! 👋 I'm nanobot, your AI assistant. How can I help you today?"
+```
+
+**Nanobot Gateway Full Logs:**
+```
+🐈 Starting nanobot gateway version 0.1.4.post5 on port 18790...
+WebChat channel enabled
+✓ Channels enabled: webchat
+✓ Heartbeat: every 1800s
+MCP server 'lms': connected, 9 tools registered
+MCP server 'mcp_webchat': connected, 1 tools registered
+Agent loop started
+Processing message from webchat: hello
+Response to webchat: Hello! 👋 I'm nanobot, your AI assistant. How can I help you today?
+```
+
+### Files Modified
+
+- `nanobot-websocket-channel/` — Added as git submodule
+- `nanobot/entrypoint.py` — Updated to configure webchat channel and mcp_webchat MCP server
+- `nanobot/config.json` — Added webchat channel and mcp_webchat MCP server config
+- `nanobot/Dockerfile` — Updated to install webchat dependencies
+- `nanobot/workspace/skills/lms/SKILL.md` — Updated to use mcp_webchat_ui_message for structured UI
+- `caddy/Caddyfile` — Enabled `/ws/chat` and `/flutter*` routes
+- `docker-compose.yml` — Uncommented nanobot, client-web-flutter, and caddy config
+- `pyproject.toml` — Added workspace members for webchat packages
 
 ## Task 3A — Structured logging
 

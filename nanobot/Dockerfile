@@ -1,5 +1,5 @@
-# Simple Dockerfile for nanobot
-# Build context is ./nanobot
+# Dockerfile for nanobot with webchat support
+# Build context is ./nanobot with workspace additional_context
 
 ARG REGISTRY_PREFIX_DOCKER_HUB
 FROM ${REGISTRY_PREFIX_DOCKER_HUB}astral/uv:python3.14-bookworm-slim AS builder
@@ -9,24 +9,16 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 WORKDIR /app
 
-# Copy nanobot project files
-COPY pyproject.toml ./
+# Copy workspace root pyproject.toml and uv.lock for dependency resolution
+COPY --from=workspace . /app/
 
-# Sync dependencies (this will install nanobot-ai from URL)
+# Sync dependencies for nanobot project
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-install-project
+    cd /app/nanobot && uv sync --no-dev
 
-# Copy the rest of the nanobot project
-COPY . /app/nanobot/
-
-# Install the nanobot package
+# Install additional workspace packages (mcp-lms, webchat)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync
-
-# Install mcp-lms from the workspace mount
-COPY --from=workspace mcp/mcp-lms /app/mcp/mcp-lms
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --editable /app/mcp/mcp-lms
+    cd /app/nanobot && uv add mcp-lms nanobot-webchat mcp-webchat
 
 # ---
 # Stage 2: runtime image
