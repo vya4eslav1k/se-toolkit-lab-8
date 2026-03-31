@@ -75,6 +75,21 @@ def main():
     if lms_api_key:
         lms_config["env"]["NANOBOT_LMS_API_KEY"] = lms_api_key
 
+    # Configure mcp-obs MCP server for observability
+    victorialogs_url = os.environ.get("NANOBOT_VICTORIALOGS_URL", "").strip()
+    victoriatraces_url = os.environ.get("NANOBOT_VICTORIATRACES_URL", "").strip()
+
+    if victorialogs_url and victoriatraces_url:
+        if "mcp_obs" not in config["tools"]["mcpServers"]:
+            config["tools"]["mcpServers"]["mcp_obs"] = {
+                "command": "python",
+                "args": ["-m", "mcp_obs"],
+                "env": {
+                    "NANOBOT_VICTORIALOGS_URL": victorialogs_url,
+                    "NANOBOT_VICTORIATRACES_URL": victoriatraces_url,
+                },
+            }
+
     # Configure webchat channel if enabled
     webchat_enabled = os.environ.get("NANOBOT_WEBCHAT_ENABLED", "").strip().lower()
     if webchat_enabled == "true":

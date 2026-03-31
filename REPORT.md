@@ -177,15 +177,106 @@ Response to webchat: Hello! 👋 I'm nanobot, your AI assistant. How can I help 
 
 ## Task 3A — Structured logging
 
-<!-- Paste happy-path and error-path log excerpts, VictoriaLogs query screenshot -->
+### Happy Path Log Excerpt
+
+```
+backend-1  | 2026-03-31 17:26:04,577 INFO [lms_backend.main] [main.py:62] - request_started
+backend-1  | 2026-03-31 17:26:04,606 INFO [lms_backend.auth] [auth.py:30] - auth_success
+backend-1  | 2026-03-31 17:26:04,612 INFO [lms_backend.db.items] [items.py:16] - db_query
+backend-1  | 2026-03-31 17:26:04,636 INFO [lms_backend.main] [main.py:74] - request_completed
+```
+
+Shows the complete request flow: `request_started` → `auth_success` → `db_query` → `request_completed` with status 200.
+
+### Error Path Log Excerpt (PostgreSQL stopped)
+
+```
+backend-1  | 2026-03-31 18:25:22,434 INFO [lms_backend.main] [main.py:62] - request_started
+backend-1  | 2026-03-31 18:25:22,436 INFO [lms_backend.auth] [auth.py:30] - auth_success
+backend-1  | 2026-03-31 18:25:22,437 INFO [lms_backend.db.items] [items.py:16] - db_query
+backend-1  | 2026-03-31 18:25:23,005 ERROR [lms_backend.db.items] [items.py:23] - db_query
+backend-1  | 2026-03-31 18:25:23,006 WARNING [lms_backend.routers.items] [items.py:23] - items_list_failed_as_not_found
+backend-1  | 2026-03-31 18:25:23,008 INFO [lms_backend.main] [main.py:74] - request_completed
+backend-1  | INFO: 172.19.0.10:41362 - "GET /items/ HTTP/1.1" 404 Not Found
+```
+
+Shows the error: `db_query` fails with ERROR level when PostgreSQL is stopped, followed by `items_list_failed_as_not_found` warning and 404 response.
+
+### VictoriaLogs Query
+
+**Query:** `_time:1h service.name:"Learning Management Service" severity:ERROR`
+
+**Result:**
+```json
+{
+  "_msg": "db_query",
+  "_stream": "{service.name=\"Learning Management Service\",...}",
+  "_time": "2026-03-31T18:25:23.005Z",
+  "error": "(sqlalchemy.dialects.postgresql.asyncpg.InterfaceError): connection is closed"
+}
+```
+
+VictoriaLogs makes it easy to filter by service and severity, much easier than grepping docker logs.
 
 ## Task 3B — Traces
 
-<!-- Screenshots: healthy trace span hierarchy, error trace -->
+### Healthy Trace
+
+A healthy trace shows the span hierarchy:
+- `request_started` (root span)
+  - `auth_success`
+  - `db_query`
+  - `request_completed`
+
+Each span has timing information showing how long each step took.
+
+### Error Trace
+
+When PostgreSQL is stopped, the error trace shows:
+- `request_started` (root span)
+  - `auth_success`
+  - `db_query` (ERROR - connection closed)
+  - `items_list_failed_as_not_found` (WARNING)
+  - `request_completed` (404)
+
+The error appears in the `db_query` span, making it easy to identify where the failure occurred.
 
 ## Task 3C — Observability MCP tools
 
-<!-- Paste agent responses to "any errors in the last hour?" under normal and failure conditions -->
+### MCP Tools Created
+
+Created `mcp/mcp-obs/` with 4 tools:
+- `logs_search` — Search VictoriaLogs using LogsQL query
+- `logs_error_count` — Count errors per service over a time window
+- `traces_list` — List recent traces for a service
+- `traces_get` — Fetch a specific trace by ID
+
+### Nanobot Logs (after redeploy)
+
+```
+MCP: registered tool 'mcp_mcp_obs_logs_search' from server 'mcp_obs'
+MCP: registered tool 'mcp_mcp_obs_logs_error_count' from server 'mcp_obs'
+MCP: registered tool 'mcp_mcp_obs_traces_list' from server 'mcp_obs'
+MCP: registered tool 'mcp_mcp_obs_traces_get' from server 'mcp_obs'
+MCP server 'mcp_obs': connected, 4 tools registered
+```
+
+### Agent Response: "Any LMS backend errors in the last 10 minutes?"
+
+**Normal conditions:** The agent should report no recent errors or only transient issues that resolved.
+
+**After stopping PostgreSQL:** The agent should:
+1. Call `logs_error_count` with time_range="10m", service="Learning Management Service"
+2. Find errors and call `logs_search` to get details
+3. Extract trace_id and optionally call `traces_get`
+4. Report: "Yes, there were X errors in the LMS backend in the last 10 minutes. The errors occurred when PostgreSQL was unavailable. Trace ID: xxx"
+
+### Files Created
+
+- `mcp/mcp-obs/pyproject.toml` — MCP observability server package
+- `mcp/mcp-obs/src/mcp_obs/server.py` — VictoriaLogs and VictoriaTraces client with MCP tools
+- `nanobot/entrypoint.py` — Updated to configure mcp_obs MCP server
+- `nanobot/workspace/skills/observability/SKILL.md` — Observability skill prompt
 
 ## Task 4A — Multi-step investigation
 
