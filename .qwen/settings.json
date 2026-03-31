@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git submodule *)",
+      "Bash(rmdir *)",
+      "Bash(docker compose *)",
+      "Bash(sleep *)",
+      "Bash(cargo install *)",
+      "Bash(python3 *)",
+      "Bash(curl *)",
+      "Bash(mkdir *)",
+      "Bash(uv *)",
+      "Bash(docker exec *)"
+    ]
+  },
+  "$version": 3
+}
